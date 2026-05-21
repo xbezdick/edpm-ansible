@@ -1,0 +1,42 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# ============================================================================
+# Leapp OS Upgrade - Run Phase (system_upgrade_run)
+# ============================================================================
+
+- name: Run leapp upgrade (download packages)
+  ansible.builtin.shell: |
+    {% if _leapp_devel_skip | default(false) %}{{ _leapp_devel_skip }}{% endif %}
+    leapp upgrade
+    {% if _leapp_debug | default(true) %}--debug{% endif %}
+    {% if _leapp_command_options | default(false) %}{{ _leapp_command_options }}{% endif %}
+  changed_when: true
+
+- name: Run leapp pre-reboot command
+  ansible.builtin.command:
+    cmd: "{{ _leapp_pre_reboot_command }}"
+  changed_when: true
+  when:
+    - _leapp_pre_reboot_command | length > 0
+
+- name: Reboot to perform the upgrade
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ _leapp_reboot_timeout }}"
+    test_command: >-
+      source /etc/os-release; [ "${VERSION_ID%.*}" -ge "8" ] && systemctl is-system-running | grep -qE "running|degraded" || exit 1
+    post_reboot_delay: "{{ _leapp_post_reboot_delay }}"
+

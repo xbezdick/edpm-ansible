@@ -1,0 +1,134 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+argument_specs:
+  main:
+    short_description: Perform Leapp-based OS upgrade on EDP nodes
+    description:
+      - This role performs an OS upgrade using the Leapp tool on EDP (EDPM) nodes.
+      - It handles the full upgrade lifecycle including preparation, execution,
+        reboot, and post-upgrade tasks.
+    version_added: 1.0.0
+    options:
+      edpm_leapp_upgrade_enabled:
+        description:
+          - Enable leapp-based OS upgrade process.
+        type: bool
+        default: false
+
+      edpm_leapp_upgrade_debug:
+        description:
+          - Enable debug output for leapp upgrade process.
+        type: bool
+        default: true
+
+      edpm_leapp_upgrade_devel_skip:
+        description:
+          - Environment variables to skip leapp checks (e.g., LEAPP_DEVEL_SKIP_RHSM=1).
+            Used for development and testing purposes.
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_command_options:
+        description:
+          - Additional command options to pass to leapp upgrade (e.g., --enablerepo).
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_reboot_timeout:
+        description:
+          - Timeout in seconds for the reboot during OS upgrade phase.
+        type: int
+        default: 3600
+
+      edpm_leapp_upgrade_post_reboot_delay:
+        description:
+          - Maximum seconds to wait for machine to reboot and respond after upgrade.
+        type: int
+        default: 120
+
+      edpm_leapp_upgrade_packages_to_remove:
+        description:
+          - List of packages to remove during leapp upgrade.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_packages_to_install:
+        description:
+          - List of packages to install after leapp upgrade.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_modules_to_unload:
+        description:
+          - List of kernel modules to unload from the system due to incompatibility
+            with the next RHEL version.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_actors_to_remove:
+        description:
+          - List of leapp actors to remove to prevent them from inhibiting the upgrade.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_repo_init_command:
+        description:
+          - Command or script to run to initialize the leapp process (e.g., repository switch).
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_init_command:
+        description:
+          - Command or script to apply workarounds to get leapp working.
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_pre_reboot_command:
+        description:
+          - Command to run before rebooting into leapp.
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_post_reboot_command:
+        description:
+          - Command to run after rebooting from leapp.
+        type: str
+        default: ""
+
+      edpm_leapp_upgrade_nics_prefixes_to_keep:
+        description:
+          - List of NIC prefixes to hardcode into udev to prevent renaming.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_base_packages:
+        description:
+          - List of additional prerequisite packages to install.
+        type: list
+        elements: str
+        default: []
+
+      edpm_leapp_upgrade_skip_package_update:
+        description:
+          - Whether to skip package updates during post-upgrade phase.
+        type: bool
+        default: false

@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+{% if _leapp_boot_partition_lvm | bool %}
+insmod lvm
+{% endif %}
+search --no-floppy --set prefix --file {% if _leapp_boot_dir_mount == '/' %}/boot{% endif %}/grub2/grub.cfg
+set prefix=($prefix){% if _leapp_boot_dir_mount == '/' %}/boot{% endif %}/grub2
+configfile $prefix/grub.cfg

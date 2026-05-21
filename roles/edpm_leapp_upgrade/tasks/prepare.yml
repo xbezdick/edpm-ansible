@@ -1,0 +1,151 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# ============================================================================
+# Leapp OS Upgrade - Prepare Phase
+# ============================================================================
+
+
+- name: Run leapp upgrade init command
+  ansible.builtin.command:
+    cmd: "{{ _leapp_repo_init_command }}"
+  changed_when: true
+  when:
+    - _leapp_repo_init_command | length > 0
+
+- name: Ensure prerequisite packages are installed
+  ansible.builtin.package:
+    name:
+      - jq
+      - lvm2
+      - openstack-selinux
+      - os-net-config
+    state: present
+
+- name: Ensure prerequisite packages are installed
+  ansible.builtin.package:
+    name: "{{ edpm_leapp_upgrade_base_packages }}"
+    state: present
+  when:
+    - edpm_leapp_upgrade_base_packages | length > 0
+
+#- name: Install leapp-repository-openstack
+#  ansible.builtin.package:
+#    name: leapp-repository-openstack
+#    state: latest
+
+- name: Install leapp-upgrade
+  ansible.builtin.package:
+    name: leapp-upgrade
+    state: latest
+
+- name: Run leapp init command
+  ansible.builtin.command:
+    cmd: "{{ _leapp_init_command }}"
+  changed_when: true
+  when:
+    - _leapp_init_command | length > 0
+
+- name: Add packages into Leapp's to_remove file
+  ansible.builtin.lineinfile:
+    path: "/etc/leapp/transaction/to_remove"
+    line: "{{ item }}"
+  loop: "{{ _leapp_packages_to_remove }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - _leapp_packages_to_remove | length > 0
+
+- name: Add packages into Leapp's to_install file
+  ansible.builtin.lineinfile:
+    path: "/etc/leapp/transaction/to_install"
+    line: "{{ item }}"
+  loop: "{{ _leapp_packages_to_install }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - _leapp_packages_to_install | length > 0
+
+#- name: Check sshd_config file
+#  ansible.builtin.stat:
+#    path: "/etc/ssh/sshd_config"
+#  register: leapp_sshd_config_result
+#
+#- name: Add PermitRootLogin option for leapp
+#  ansible.builtin.lineinfile:
+#    path: "/etc/ssh/sshd_config"
+#    regexp: "^(# *)?PermitRootLogin"
+#    line: "PermitRootLogin without-password"
+#    create: true
+#    mode: "0644"
+#  when:
+#    - leapp_sshd_config_result.stat.exists
+#
+#- name: Ensure sshd_config has proper permissions if not found
+#  ansible.builtin.file:
+#    path: "/etc/ssh/sshd_config"
+#    state: touch
+#    mode: "0644"
+#  when:
+#    - not leapp_sshd_config_result.stat.exists
+#
+- name: Delete kernel modules from Leapp device_driver_deprecation_data.json
+  ansible.builtin.shell: |
+    set -o pipefail &&
+    jq '. | del(.data[] | select(.driver_name == "{{ item }}"))'
+    /etc/leapp/files/device_driver_deprecation_data.json >
+    /etc/leapp/files/device_driver_deprecation_data.json_modified &&
+    mv /etc/leapp/files/device_driver_deprecation_data.json_modified
+    /etc/leapp/files/device_driver_deprecation_data.json
+  loop: "{{ _leapp_modules_to_unload }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - _leapp_modules_to_unload | length > 0
+
+- name: Remove leapp actors to prevent them inhibiting the upgrade
+  ansible.builtin.command:
+    cmd: "find /usr/share/leapp-repository/repositories/ -name {{ item }} -type d -print -exec rm -rf \"{}\" +"
+  loop: "{{ _leapp_actors_to_remove }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - _leapp_actors_to_remove | length > 0
+
+#- name: Set leapp required answers
+#  ansible.builtin.shell: |
+#    leapp answer --add --section check_vdo.confirm=True
+#  changed_when: true
+
+#- name: Replace EFI grub.cfg with redirect to /boot/grub2/grub.cfg
+#  ansible.builtin.import_tasks: efigrub.yml
+
+- name: Keep nics with prefix from renaming (udev rules)
+  ansible.builtin.shell: |
+    ip -j link show | \
+    jq -r --arg prefix "{{ item }}" '.[] |
+      select((.ifname | startswith($prefix)) and
+      (.ifname | test("^.*v[0-9]*$") | not) and
+      (.ifname | test("^.*_[0-9]*$") | not) and
+      (.ifname | test("^.*\\..*$") | not)) |
+      if .permaddr? then .address=.permaddr else . end |
+      "SUBSYSTEM==\"net\",ACTION==\"add\",DRIVERS==\"?*\",\" + "NAME=\"" + .ifname +"\" ,ATTR{address}==\"" + .address + "\""' >> /etc/udev/rules.d/70-rhosp-persistent-net.rules
+  loop: "{{ _leapp_nics_prefixes_to_keep | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - _leapp_nics_prefixes_to_keep | length > 0
+

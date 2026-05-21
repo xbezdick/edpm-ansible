@@ -1,0 +1,68 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# Enable leapp-based OS upgrade
+edpm_leapp_upgrade_enabled: false
+
+# Enable debug output for leapp upgrade process
+edpm_leapp_upgrade_debug: true
+
+# Environment variables to skip leapp checks (e.g., LEAPP_DEVEL_SKIP_RHSM=1)
+# Used for development/testing
+edpm_leapp_upgrade_devel_skip: ""
+
+# Additional command options to pass to leapp upgrade (e.g., --enablerepo)
+edpm_leapp_upgrade_command_options: ""
+
+# Timeout in seconds for the reboot during OS upgrade phase
+edpm_leapp_upgrade_reboot_timeout: 3600
+
+# Maximum seconds to wait for machine to reboot and respond after upgrade
+edpm_leapp_upgrade_post_reboot_delay: 120
+
+# List of packages to remove during leapp upgrade
+edpm_leapp_upgrade_packages_to_remove: []
+
+# List of packages to install after leapp upgrade
+edpm_leapp_upgrade_packages_to_install: []
+
+# List of kernel modules to unload from the system due to incompatibility
+# with the next RHEL version
+edpm_leapp_upgrade_modules_to_unload: []
+
+# List of leapp actors to remove to prevent them from inhibiting the upgrade
+edpm_leapp_upgrade_actors_to_remove: []
+
+# Command or script to run to initialize the leapp process (e.g., repository switch)
+edpm_leapp_upgrade_repo_init_command: ""
+
+# Command or script to apply workarounds to get leapp working
+edpm_leapp_upgrade_init_command: ""
+
+# Command to run before rebooting into leapp
+edpm_leapp_upgrade_pre_reboot_command: ""
+
+# Command to run after rebooting from leapp
+edpm_leapp_upgrade_post_reboot_command: ""
+
+# List of NIC prefixes to hardcode into udev to prevent renaming
+edpm_leapp_upgrade_nics_prefixes_to_keep: []
+
+# List of additional packages to install
+edpm_leapp_upgrade_base_packages: []
+
+# Whether to skip package updates during post-upgrade
+edpm_leapp_upgrade_skip_package_update: false

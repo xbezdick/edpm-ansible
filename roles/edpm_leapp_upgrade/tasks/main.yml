@@ -1,0 +1,94 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# ============================================================================
+# EDPM Leapp OS Upgrade Role - Main Entry Point
+# ============================================================================
+
+- name: Gather distribution facts
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - "distribution"
+  tags:
+    - always
+
+- name: Set leapp upgrade facts
+  ansible.builtin.set_fact:
+    _leapp_enabled: "{{ edpm_leapp_upgrade_enabled }}"
+    _leapp_debug: "{{ edpm_leapp_upgrade_debug }}"
+    _leapp_devel_skip: "{{ edpm_leapp_upgrade_devel_skip }}"
+    _leapp_command_options: "{{ edpm_leapp_upgrade_command_options }}"
+    _leapp_reboot_timeout: "{{ edpm_leapp_upgrade_reboot_timeout }}"
+    _leapp_post_reboot_delay: "{{ edpm_leapp_upgrade_post_reboot_delay }}"
+    _leapp_packages_to_remove: "{{ edpm_leapp_upgrade_packages_to_remove }}"
+    _leapp_packages_to_install: "{{ edpm_leapp_upgrade_packages_to_install }}"
+    _leapp_modules_to_unload: "{{ edpm_leapp_upgrade_modules_to_unload }}"
+    _leapp_actors_to_remove: "{{ edpm_leapp_upgrade_actors_to_remove }}"
+    _leapp_repo_init_command: "{{ edpm_leapp_upgrade_repo_init_command }}"
+    _leapp_init_command: "{{ edpm_leapp_upgrade_init_command }}"
+    _leapp_pre_reboot_command: "{{ edpm_leapp_upgrade_pre_reboot_command }}"
+    _leapp_post_reboot_command: "{{ edpm_leapp_upgrade_post_reboot_command }}"
+    _leapp_nics_prefixes_to_keep: "{{ edpm_leapp_upgrade_nics_prefixes_to_keep }}"
+  tags:
+    - always
+
+- name: Validate leapp upgrade prerequisites
+  ansible.builtin.assert:
+    that:
+      - edpm_leapp_upgrade_enabled
+      - ansible_facts.distribution == 'RedHat'
+      # TODO: FIXME:
+      #  * we should check for 9.6+
+      #  * validation should check for predictable nic naming
+      #  * validation needs to check if ifcfg was migrated to nmstate
+      #  * validations should go to separate include task
+      - ansible_facts.distribution_major_version is version('9', '==')
+    fail_msg: >
+      Leapp upgrade is only supported on RHEL 9 systems when enabled.
+      Current distribution: {{ ansible_facts.distribution }},
+      Major version: {{ ansible_facts.distribution_major_version }}
+  when:
+    - edpm_leapp_upgrade_enabled
+
+- name: Include leapp upgrade prepare tasks
+  ansible.builtin.include_tasks:
+    file: prepare.yml
+    apply:
+      tags:
+        - leapp_prepare
+  when:
+    - edpm_leapp_upgrade_enabled
+
+- name: Include leapp upgrade run tasks (reboot)
+  ansible.builtin.include_tasks:
+    file: run.yml
+    apply:
+      tags:
+        - leapp_run
+  when:
+    - edpm_leapp_upgrade_enabled
+
+- name: Include post-upgrade tasks
+  ansible.builtin.include_tasks:
+    file: post-upgrade.yml
+    apply:
+      tags:
+        - leapp_post_upgrade
+  when:
+    - edpm_leapp_upgrade_enabled
+

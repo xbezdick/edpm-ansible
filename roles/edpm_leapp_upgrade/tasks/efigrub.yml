@@ -1,0 +1,100 @@
+---
+# Copyright 2026 Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# ============================================================================
+# EFI GRUB Configuration Fix
+# ============================================================================
+
+- name: Get the block device that /boot is on
+  ansible.builtin.shell: |
+    set -o pipefail
+    df --output=source /boot | tail -1
+  register: _leapp_boot_partition_source
+
+- name: Get the mount point that /boot is in
+  ansible.builtin.shell: |
+    set -o pipefail
+    df --output=target /boot | tail -1
+  register: _leapp_boot_partition_target
+
+- name: Set facts for EFI grub.cfg generation
+  ansible.builtin.set_fact:
+    _leapp_boot_partition_lvm: "{{ 'vg-lv_' in _leapp_boot_partition_source.stdout }}"
+    _leapp_boot_dir_mount: "{{ _leapp_boot_partition_target.stdout }}"
+
+- name: Execute script to fix grub-menu
+  ansible.builtin.shell: |
+    set -o pipefail
+    GRUBENV_PATH="/boot/grub2/grubenv"
+    # Check whether is a link
+    if [ -L "$GRUBENV_PATH" ]; then
+      # Resolve the absolute path of the symlink's target
+      LNK_TARGET=$(readlink -f "$GRUBENV_PATH")
+      if [ -f "$LNK_TARGET" ]; then
+        echo "Moving real file from $LNK_TARGET to $GRUBENV_PATH."
+        mv --backup=t "$LNK_TARGET" "$GRUBENV_PATH"
+        echo "Symlink at $GRUBENV_PATH has been replaced with the actual file."
+      else
+        echo "The target of the symlink is not a regular file: $LNK_TARGET"
+      fi
+    else
+      echo "$GRUBENV_PATH is not a symlink."
+    fi
+    if [ -f /boot/efi/EFI/redhat/grubenv ]; then
+      echo "Remove of /boot/efi/EFI/redhat/grubenv"
+      rm -f /boot/efi/EFI/redhat/grubenv
+    fi
+    if [ -f /boot/efi/EFI/centos/grubenv ]; then
+      echo "Remove of /boot/efi/EFI/centos/grubenv"
+      rm -f /boot/efi/EFI/centos/grubenv
+    fi
+  changed_when: true
+
+- name: Check grub config paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: leapp_grub_stat
+  loop:
+    - /boot/efi/EFI/redhat
+    - /boot/efi/EFI/centos
+
+- name: Write EFI grub.cfg
+  ansible.builtin.template:
+    src: "efi-grub.cfg.j2"
+    dest: "{{ item.stat.path }}/grub.cfg"
+    mode: 0600
+    owner: root
+    group: root
+  when: item.stat.exists | bool
+  loop: "{{ leapp_grub_stat.results }}"
+
+- name: bz#2266025 modify GRUB_DEFAULT=saved in /etc/default/grub
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: ^GRUB_DEFAULT=
+    line: GRUB_DEFAULT=saved
+    state: present
+
+- name: OSPRH-16320 ensure that GRUB_TERMINAL_OUTPUT=console in /etc/default/grub
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: ^GRUB_TERMINAL_OUTPUT=
+    line: 'GRUB_TERMINAL_OUTPUT="console"'
+    state: present
+
+- name: Execute grub2-mkconfig
+  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  changed_when: true
